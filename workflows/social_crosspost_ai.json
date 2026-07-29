@@ -1,0 +1,127 @@
+{
+  "name": "Agente Gaudi — Social Media Cross-Post Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {"interval": [{"field": "hours", "hoursInterval": 24}]}
+      },
+      "id": "1",
+      "name": "Schedule — Daily 9AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentId": "{{YOUR_CONTENT_SHEET_ID}}",
+        "sheetName": "Content Queue",
+        "filters": {
+          "values": [
+            {"lookupColumn": "Status", "lookupValue": "Ready"}
+          ]
+        },
+        "options": {"returnFirstMatch": true}
+      },
+      "id": "2",
+      "name": "Get Next Post from Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{ $json['Title'] }}", "operation": "isNotEmpty"}]
+        }
+      },
+      "id": "3",
+      "name": "Post Available?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a social media content adapter. Given a base post, create platform-specific versions. Return JSON with keys: twitter (280 chars max, with hashtags), linkedin (professional tone, 500-1000 chars), telegram (casual, with emojis, no char limit)."
+            },
+            {
+              "role": "user",
+              "content": "=Adapt this post for Twitter/X, LinkedIn and Telegram:\n\nTitle: {{ $json['Title'] }}\nContent: {{ $json['Content'] }}\nHashtags: {{ $json['Hashtags'] }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "4",
+      "name": "AI — Adapt Content per Platform",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.message.content;\nconst parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;\n\nreturn [{\n  json: {\n    twitter: parsed.twitter || '',\n    linkedin: parsed.linkedin || '',\n    telegram: parsed.telegram || '',\n    original_row: $('Get Next Post from Queue').item.json\n  }\n}];"
+      },
+      "id": "5",
+      "name": "Parse Platform Versions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1040, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "{{YOUR_CHANNEL_ID}}",
+        "text": "={{ $json.telegram }}",
+        "additionalFields": {"parse_mode": "Markdown"}
+      },
+      "id": "6",
+      "name": "Post to Telegram Channel",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1240, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "={{$('Get Next Post from Queue').item.json['Sheet ID']}}",
+        "sheetName": "Content Queue",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "Published",
+            "Published At": "={{ new Date().toISOString() }}",
+            "Twitter Version": "={{ $('Parse Platform Versions').item.json.twitter }}",
+            "LinkedIn Version": "={{ $('Parse Platform Versions').item.json.linkedin }}"
+          }
+        }
+      },
+      "id": "7",
+      "name": "Mark as Published in Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1240, 350]
+    }
+  ],
+  "connections": {
+    "Schedule — Daily 9AM": {"main": [[{"node": "Get Next Post from Queue", "type": "main", "index": 0}]]},
+    "Get Next Post from Queue": {"main": [[{"node": "Post Available?", "type": "main", "index": 0}]]},
+    "Post Available?": {"main": [[{"node": "AI — Adapt Content per Platform", "type": "main", "index": 0}], []]},
+    "AI — Adapt Content per Platform": {"main": [[{"node": "Parse Platform Versions", "type": "main", "index": 0}]]},
+    "Parse Platform Versions": {
+      "main": [[
+        {"node": "Post to Telegram Channel", "type": "main", "index": 0},
+        {"node": "Mark as Published in Sheets", "type": "main", "index": 0}
+      ]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "agente-gaudi-crosspost-v1",
+  "tags": [{"id": "1", "name": "agente-gaudi"}, {"id": "2", "name": "social-media"}, {"id": "3", "name": "content-automation"}]
+}
