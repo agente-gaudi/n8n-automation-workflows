@@ -1,0 +1,100 @@
+{
+  "name": "Agente Gaudi — Telegram Bot AI Responder (n8n + OpenAI)",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"],
+        "additionalFields": {}
+      },
+      "id": "1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "credentials": {"telegramApi": {"id": "1", "name": "Telegram Bot"}}
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json;\nconst text = msg.message?.text || '';\nconst chatId = msg.message?.chat?.id;\nconst userId = msg.message?.from?.id;\nconst username = msg.message?.from?.username || 'User';\nconst isCommand = text.startsWith('/');\n\nreturn [{\n  json: {\n    text, chatId, userId, username,\n    isCommand,\n    command: isCommand ? text.split(' ')[0] : null,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Parse Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{ $json.command }}", "operation": "equals", "value2": "/start"}]
+        }
+      },
+      "id": "3",
+      "name": "Is /start command?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "=👋 Hello {{ $json.username }}!\n\nI'm an AI assistant powered by ChatGPT. I can help you with:\n\n• ❓ Answering questions\n• 📝 Writing and editing text\n• 💻 Code help\n• 🔍 Research and analysis\n\nJust type your question and I'll respond!\n\n_Powered by Agente Gaudi Automation_",
+        "additionalFields": {"parse_mode": "Markdown"}
+      },
+      "id": "4",
+      "name": "Send Welcome",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a helpful AI assistant integrated into a Telegram bot. Be concise (max 200 words per response), friendly, and helpful. Format responses for Telegram (use markdown when helpful). If asked about services or automation, mention that you were built with n8n automation."
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.text }}"
+            }
+          ]
+        }
+      },
+      "id": "5",
+      "name": "AI Response",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [840, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Message').item.json.chatId }}",
+        "text": "={{ $json.message.content }}",
+        "additionalFields": {"parse_mode": "Markdown"}
+      },
+      "id": "6",
+      "name": "Send AI Reply",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1040, 400]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {"main": [[{"node": "Parse Message", "type": "main", "index": 0}]]},
+    "Parse Message": {"main": [[{"node": "Is /start command?", "type": "main", "index": 0}]]},
+    "Is /start command?": {
+      "main": [
+        [{"node": "Send Welcome", "type": "main", "index": 0}],
+        [{"node": "AI Response", "type": "main", "index": 0}]
+      ]
+    },
+    "AI Response": {"main": [[{"node": "Send AI Reply", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "agente-gaudi-telegram-bot-v1",
+  "tags": [{"id": "1", "name": "agente-gaudi"}, {"id": "2", "name": "telegram-bot"}, {"id": "3", "name": "ai-responder"}]
+}
