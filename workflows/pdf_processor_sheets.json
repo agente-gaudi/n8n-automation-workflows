@@ -1,0 +1,115 @@
+{
+  "name": "Agente Gaudi — PDF Processor + Google Sheets Auto-Update",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-pdf",
+        "responseMode": "onReceived",
+        "responseData": "{ \"status\": \"processing\" }"
+      },
+      "id": "1",
+      "name": "Webhook — Receive PDF",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process incoming PDF binary data\nconst items = $input.all();\nconst item = items[0];\nconst filename = item.json.body?.filename || 'document.pdf';\nconst base64Data = item.json.body?.file_data;\n\nif (!base64Data) {\n  throw new Error('No file data received');\n}\n\nreturn [{\n  json: {\n    filename: filename,\n    received_at: new Date().toISOString(),\n    file_size: Math.round(base64Data.length * 0.75) + ' bytes'\n  },\n  binary: {\n    data: {\n      data: base64Data,\n      mimeType: 'application/pdf',\n      fileName: filename\n    }\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Prepare PDF Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a data extraction assistant. Extract structured information from the provided document text. Return ONLY valid JSON with the fields: date, total_amount, vendor_name, invoice_number, line_items (array of {description, quantity, unit_price, total}). If a field is not found, use null."
+            },
+            {
+              "role": "user",
+              "content": "=Extract the data from this document: {{ $json.extracted_text }}"
+            }
+          ]
+        },
+        "jsonOutput": true
+      },
+      "id": "3",
+      "name": "Extract Data with AI",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and structure for Sheets\nconst aiResponse = $input.first().json;\nconst extracted = typeof aiResponse.message?.content === 'string' \n  ? JSON.parse(aiResponse.message.content)\n  : aiResponse;\n\nreturn [{\n  json: {\n    Date: extracted.date || '',\n    Vendor: extracted.vendor_name || '',\n    Invoice_Number: extracted.invoice_number || '',\n    Total_Amount: extracted.total_amount || '0',\n    Line_Items: JSON.stringify(extracted.line_items || []),\n    Processed_At: new Date().toISOString(),\n    Status: 'processed'\n  }\n}];"
+      },
+      "id": "4",
+      "name": "Structure Extracted Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "{{YOUR_GOOGLE_SHEET_ID}}",
+        "sheetName": "Invoices",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.Date }}",
+            "Vendor": "={{ $json.Vendor }}",
+            "Invoice Number": "={{ $json.Invoice_Number }}",
+            "Total Amount": "={{ $json.Total_Amount }}",
+            "Line Items": "={{ $json.Line_Items }}",
+            "Processed At": "={{ $json.Processed_At }}",
+            "Status": "={{ $json.Status }}"
+          }
+        }
+      },
+      "id": "5",
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [1040, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Receive PDF": {
+      "main": [
+        [{ "node": "Prepare PDF Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare PDF Data": {
+      "main": [
+        [{ "node": "Extract Data with AI", "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Data with AI": {
+      "main": [
+        [{ "node": "Structure Extracted Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "Structure Extracted Data": {
+      "main": [
+        [{ "node": "Append to Google Sheets", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "id": "agente-gaudi-pdf-processor-v1",
+  "tags": [
+    { "id": "1", "name": "agente-gaudi" },
+    { "id": "2", "name": "pdf-processing" },
+    { "id": "3", "name": "invoice-automation" }
+  ]
+}
