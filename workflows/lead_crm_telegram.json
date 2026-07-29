@@ -1,0 +1,96 @@
+{
+  "name": "Agente Gaudi — Lead Form to CRM + Telegram Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-capture",
+        "responseMode": "onReceived",
+        "responseData": "{ \"status\": \"received\", \"message\": \"Thank you! We will contact you soon.\" }"
+      },
+      "id": "1",
+      "name": "Webhook — Receive Lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate lead data\nconst body = $input.first().json.body;\nconst name = body.name || body.full_name || 'Unknown';\nconst email = body.email || '';\nconst phone = body.phone || body.whatsapp || '';\nconst source = body.source || body.utm_source || 'Website';\nconst message = body.message || body.notes || '';\n\nif (!email) {\n  throw new Error('Email is required');\n}\n\nreturn [{\n  json: {\n    name: name.trim(),\n    email: email.trim().toLowerCase(),\n    phone: phone.trim(),\n    source: source,\n    message: message,\n    timestamp: new Date().toISOString(),\n    status: 'new_lead'\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Process & Validate Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "{{YOUR_GOOGLE_SHEET_ID}}",
+        "sheetName": "Leads",
+        "columnToMatchOn": "email",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $json.name }}",
+            "Email": "={{ $json.email }}",
+            "Phone": "={{ $json.phone }}",
+            "Source": "={{ $json.source }}",
+            "Message": "={{ $json.message }}",
+            "Timestamp": "={{ $json.timestamp }}",
+            "Status": "={{ $json.status }}"
+          }
+        }
+      },
+      "id": "3",
+      "name": "Save to Google Sheets CRM",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [640, 200]
+    },
+    {
+      "parameters": {
+        "chatId": "{{YOUR_TELEGRAM_CHAT_ID}}",
+        "text": "=🔔 *NUEVO LEAD*\n\n👤 *Nombre:* {{ $json.name }}\n📧 *Email:* {{ $json.email }}\n📱 *Teléfono:* {{ $json.phone || 'No proporcionado' }}\n🌐 *Fuente:* {{ $json.source }}\n💬 *Mensaje:* {{ $json.message || 'Sin mensaje' }}\n⏰ *Fecha:* {{ $json.timestamp }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "4",
+      "name": "Notify via Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [640, 400]
+    }
+  ],
+  "connections": {
+    "Webhook — Receive Lead": {
+      "main": [
+        [{ "node": "Process & Validate Lead", "type": "main", "index": 0 }]
+      ]
+    },
+    "Process & Validate Lead": {
+      "main": [
+        [
+          { "node": "Save to Google Sheets CRM", "type": "main", "index": 0 },
+          { "node": "Notify via Telegram", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "agente-gaudi-template-001"
+  },
+  "id": "agente-gaudi-lead-crm-v1",
+  "tags": [
+    { "id": "1", "name": "agente-gaudi" },
+    { "id": "2", "name": "lead-management" },
+    { "id": "3", "name": "crm" }
+  ]
+}
