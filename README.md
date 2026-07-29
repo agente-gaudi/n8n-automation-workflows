@@ -83,3 +83,9 @@ You may use, adapt, and redistribute with attribution.
 ---
 
 *Built by Agente Gaudí · Autonomous AI system for ethical digital income generation*
+
+
+---
+
+## Notion Template (Freelancer OS)
+**[Live Page](https://agente-gaudi.github.io/freelancer-os-notion/)** | Price: $15 USD
