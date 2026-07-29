@@ -1,0 +1,118 @@
+{
+  "name": "Agente Gaudi — Kiwify/Hotmart → WhatsApp Delivery Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kiwify-webhook",
+        "responseMode": "onReceived",
+        "responseData": "{\"status\": \"ok\"}"
+      },
+      "id": "1",
+      "name": "Webhook — Kiwify/Hotmart Purchase",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize Kiwify and Hotmart webhook payloads into a standard format\nconst body = $input.first().json.body || $input.first().json;\n\n// Detect platform\nlet platform = 'unknown';\nlet buyer = {};\nlet product = {};\nlet transaction = {};\n\n// Kiwify format\nif (body.order_status || body.customer) {\n  platform = 'kiwify';\n  buyer = {\n    name: body.customer?.name || '',\n    email: body.customer?.email || '',\n    phone: body.customer?.mobile || body.customer?.phone || ''\n  };\n  product = {\n    name: body.product?.name || '',\n    id: body.product?.id || ''\n  };\n  transaction = {\n    id: body.order_id || '',\n    status: body.order_status || '',\n    amount: body.amount || 0\n  };\n}\n// Hotmart format\nelse if (body.data?.buyer || body.event) {\n  platform = 'hotmart';\n  const d = body.data || {};\n  buyer = {\n    name: d.buyer?.name || '',\n    email: d.buyer?.email || '',\n    phone: d.buyer?.phone || ''\n  };\n  product = {\n    name: d.product?.name || '',\n    id: d.product?.id || ''\n  };\n  transaction = {\n    id: d.purchase?.transaction || '',\n    status: body.event === 'PURCHASE_APPROVED' ? 'paid' : body.event,\n    amount: d.purchase?.price?.value || 0\n  };\n}\n\n// Only process paid purchases\nif (!['paid', 'PURCHASE_APPROVED', 'approved', 'complete'].includes(transaction.status)) {\n  return [{ json: { skip: true, reason: `Status: ${transaction.status}` } }];\n}\n\nreturn [{\n  json: {\n    platform,\n    buyer,\n    product,\n    transaction,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [{"value1": "={{ $json.skip }}", "operation": "notEqual", "value2": true}]
+        }
+      },
+      "id": "3",
+      "name": "Is Paid Purchase?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a friendly customer success assistant. Write a warm, professional purchase confirmation message in the same language as the buyer's name (detect from name). Keep it under 100 words. Include: 1) Congratulations on the purchase, 2) Product name, 3) That they'll receive access details shortly, 4) Invitation to contact for support. Use emojis sparingly."
+            },
+            {
+              "role": "user",
+              "content": "=Write a purchase confirmation for:\nBuyer: {{ $json.buyer.name }}\nProduct: {{ $json.product.name }}\nPlatform: {{ $json.platform }}"
+            }
+          ]
+        }
+      },
+      "id": "4",
+      "name": "Generate Personalized Message",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1,
+      "position": [840, 200]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "{{YOUR_BUYERS_SHEET_ID}}",
+        "sheetName": "Buyers",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Name": "={{ $('Normalize Payload').item.json.buyer.name }}",
+            "Email": "={{ $('Normalize Payload').item.json.buyer.email }}",
+            "Phone": "={{ $('Normalize Payload').item.json.buyer.phone }}",
+            "Product": "={{ $('Normalize Payload').item.json.product.name }}",
+            "Transaction ID": "={{ $('Normalize Payload').item.json.transaction.id }}",
+            "Amount": "={{ $('Normalize Payload').item.json.transaction.amount }}",
+            "Platform": "={{ $('Normalize Payload').item.json.platform }}",
+            "Purchase Date": "={{ $('Normalize Payload').item.json.timestamp }}",
+            "Status": "new"
+          }
+        }
+      },
+      "id": "5",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [840, 400]
+    },
+    {
+      "parameters": {
+        "chatId": "{{YOUR_ADMIN_TELEGRAM_ID}}",
+        "text": "=💰 *NUEVA VENTA*\n\n👤 *Comprador:* {{ $('Normalize Payload').item.json.buyer.name }}\n📧 *Email:* {{ $('Normalize Payload').item.json.buyer.email }}\n📱 *WhatsApp:* {{ $('Normalize Payload').item.json.buyer.phone }}\n📦 *Producto:* {{ $('Normalize Payload').item.json.product.name }}\n💵 *Monto:* ${{ $('Normalize Payload').item.json.transaction.amount }}\n🏪 *Plataforma:* {{ $('Normalize Payload').item.json.platform }}",
+        "additionalFields": {"parse_mode": "Markdown"}
+      },
+      "id": "6",
+      "name": "Notify Admin via Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    }
+  ],
+  "connections": {
+    "Webhook — Kiwify/Hotmart Purchase": {"main": [[{"node": "Normalize Payload", "type": "main", "index": 0}]]},
+    "Normalize Payload": {"main": [[{"node": "Is Paid Purchase?", "type": "main", "index": 0}]]},
+    "Is Paid Purchase?": {
+      "main": [
+        [
+          {"node": "Generate Personalized Message", "type": "main", "index": 0},
+          {"node": "Log to Google Sheets", "type": "main", "index": 0}
+        ],
+        []
+      ]
+    },
+    "Generate Personalized Message": {"main": [[{"node": "Notify Admin via Telegram", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "agente-gaudi-kiwify-delivery-v1",
+  "tags": [{"id": "1", "name": "agente-gaudi"}, {"id": "2", "name": "kiwify"}, {"id": "3", "name": "hotmart"}, {"id": "4", "name": "infoproductos"}]
+}
