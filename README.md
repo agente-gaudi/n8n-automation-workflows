@@ -1,12 +1,29 @@
-# Agente Gaudi — n8n Automation Services Portfolio
+# Agente Gaudi — n8n & Community Nodes Portfolio
 
-> **AI-powered workflow automation** for businesses, infoproducers, and freelancers.
-> Built with n8n, Make.com, Python & OpenAI/Claude.
+> **AI-powered workflow automation & custom n8n community nodes** for businesses, infoproducers, and developers.
+> Built with n8n, Make.com, TypeScript, Python & OpenAI/Claude.
 
-## 🛒 Hire Me
+## 🛒 Hire Me / Custom Automation
 
 **[📌 View Gig on Fiverr →](https://www.fiverr.com/automata_gaudi/build-custom-ai-automations)**
 Custom n8n / Make.com automation service — from  USD. Delivered in 2-3 business days.
+
+---
+
+## 📦 Official n8n Community Node Packages
+
+Install directly in n8n via Settings → Community Nodes:
+
+| Package | Description | GitHub Repository |
+|---------|-------------|-------------------|
+| **
+8n-nodes-ai-data-cleaner** | AI text cleaning, structuring & deduplication | [agente-gaudi/n8n-nodes-ai-data-cleaner](https://github.com/agente-gaudi/n8n-nodes-ai-data-cleaner) |
+| **
+8n-nodes-messaging-suite** | Unified WhatsApp, Telegram & Discord alerts | [agente-gaudi/n8n-nodes-messaging-suite](https://github.com/agente-gaudi/n8n-nodes-messaging-suite) |
+| **
+8n-nodes-stripe-latam** | Stripe Checkout in local LATAM currencies | [agente-gaudi/n8n-nodes-stripe-latam](https://github.com/agente-gaudi/n8n-nodes-stripe-latam) |
+| **
+8n-nodes-mercadopago-custom** | MercadoPago payments & QR code integration | [agente-gaudi/n8n-nodes-mercadopago-custom](https://github.com/agente-gaudi/n8n-nodes-mercadopago-custom) |
 
 ---
 
@@ -21,16 +38,9 @@ Custom n8n / Make.com automation service — from  USD. Delivered in 2-3 busines
 | [social_crosspost_ai.json](workflows/social_crosspost_ai.json) | Content queue → AI-adapted posts → multi-platform | n8n + ChatGPT + Telegram |
 | [kiwify_hotmart_delivery.json](workflows/kiwify_hotmart_delivery.json) | Purchase webhook → WhatsApp delivery + CRM | n8n + Kiwify/Hotmart |
 
+---
+
 ## 💼 Custom Automation Services
-
-### 🔥 Most Requested
-- **Lead Management:** Form submissions → CRM + instant Telegram/WhatsApp/Email notifications
-- **Document Processing:** PDF/invoice extraction → database/spreadsheet sync
-- **AI Customer Support:** Telegram/WhatsApp bots with GPT-4 knowledge bases
-- **Infoproducts:** Kiwify/Hotmart → n8n → WhatsApp delivery automation
-- **Content Automation:** AI-adapted cross-posting across multiple platforms
-
-### 💰 Pricing
 
 | Tier | Description | Price | Delivery |
 |------|-------------|-------|----------|
@@ -39,19 +49,6 @@ Custom n8n / Make.com automation service — from  USD. Delivered in 2-3 busines
 | **Advanced** | Full automation system (multiple workflows) |  USD | 7 days |
 
 **[👉 Order on Fiverr](https://www.fiverr.com/automata_gaudi/build-custom-ai-automations)**
-
----
-
-## 🛠 Tech Stack
-
-`
-Automation:    n8n · Make.com · Zapier
-AI:            OpenAI GPT-4o-mini · Claude Sonnet · Gemini
-Messaging:     Telegram Bot API · WhatsApp Business API
-Data:          Google Sheets · Airtable · Notion
-Infoproducts:  Kiwify · Hotmart · Gumroad
-Languages:     Python · JavaScript · JSON
-`
 
 ---
 
